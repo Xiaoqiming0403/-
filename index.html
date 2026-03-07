@@ -2,49 +2,197 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>蔡徐坤的个人简历</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鼻屎战神：只因版超级玛丽</title>
     <style>
-        body {
-            font-family: Helvetica, Arial, sans-serif;
-            background: #fafafa;
-            color: #222;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 32px;
-            box-shadow: 0 4px 32px #ddd;
-            border-radius: 20px;
-        }
-        .profile-pic {
-            display: block;
-            margin: 0 auto 20px auto;
-            border-radius: 100px;
-            width: 160px;
-            height: 160px;
-            object-fit: cover;
-            border: 4px solid #0077ff;
-        }
-        h1 {
-            text-align: center;
-            margin: 28px 0 10px;
-        }
-        .bio {
-            text-align: center;
-            font-size: 1.1em;
-            margin-bottom: 32px;
-        }
-        .section-title {
-            font-weight: bold;
-            margin: 22px 0 10px;
-        }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'STHeiti', 'Microsoft YaHei', sans-serif; touch-action: none; }
+        #ui { position: fixed; top: 15px; left: 15px; color: #fff; font-size: 22px; font-weight: bold; text-shadow: 2px 2px #000; z-index: 10; pointer-events: none; }
+        #controls { position: fixed; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 25px; box-sizing: border-box; z-index: 20; }
+        .btn { width: 80px; height: 80px; background: rgba(255,255,255,0.35); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 3px solid #fff; font-size: 20px; font-weight: bold; -webkit-tap-highlight-color: transparent; user-select: none; }
+        .fire-btn { background: rgba(76, 175, 80, 0.7); width: 100px; height: 100px; font-size: 24px; box-shadow: 0 0 15px rgba(76,175,80,0.5); }
+        .jump-btn { background: rgba(33, 150, 243, 0.7); }
+        
+        #overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('me.jpg') center/cover; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        .start-btn { padding: 18px 50px; font-size: 24px; background: #ffcc00; border: none; border-radius: 50px; cursor: pointer; color: #000; font-weight: bold; margin-top: 20px; box-shadow: 0 5px 0 #b38f00; }
+        canvas { display: block; background: #5c94fc; }
     </style>
 </head>
 <body>
-    <img class="profile-pic" src="https://n.sinaimg.cn/ent/4_img/upload/1edcb7a3/533/w995h1138/20200408/3687-ireifzh6305852.jpg" alt="蔡徐坤">
-    <h1>蔡徐坤</h1>
-    <div class="bio">喜欢唱跳rap篮球</div>
-    <div class="section-title">联系方式</div>
-    <div>GitHub: <a href="https://github.com/Xiaoqiming0403" target="_blank">Xiaoqiming0403</a></div>
-    <div class="section-title">个人简介</div>
-    <div>蔡徐坤，追求多元发展，热爱唱跳rap篮球。<br>更多信息可在网上搜索“蔡徐坤”。</div>
+
+<div id="ui">得分: <span id="score">0</span></div>
+
+<div id="overlay">
+    <h1 id="title" style="font-size: 36px; color: #ffcc00; margin-bottom: 5px;">鼻屎战神</h1>
+    <p id="subtitle" style="font-size: 18px; margin-bottom: 20px;">—— 只因你太美版 ——</p>
+    <button class="start-btn" id="actionBtn">点击开始练习 (开启音乐)</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="controls">
+    <div style="display:flex; gap:15px;">
+        <div class="btn" id="leftBtn">左</div>
+        <div class="btn" id="rightBtn">右</div>
+    </div>
+    <div style="display:flex; gap:15px; align-items: center;">
+        <div class="btn fire-btn" id="fireBtn">弹射</div>
+        <div class="btn jump-btn" id="jumpBtn">跳</div>
+    </div>
+</div>
+
+<!-- 核心修改：匹配你 GitHub 里的文件名 "音乐.aac" -->
+<audio id="bgm" loop preload="auto">
+    <source src="音乐.aac" type="audio/aac">
+</audio>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const bgm = document.getElementById('bgm');
+const actionBtn = document.getElementById('actionBtn');
+const overlay = document.getElementById('overlay');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// 加载资源
+const playerImg = new Image();
+playerImg.src = 'me.jpg';
+
+let gameActive = false;
+let score = 0;
+let cameraX = 0;
+const gravity = 0.8;
+const worldWidth = 12000;
+
+const player = {
+    x: 100, y: 100, w: 80, h: 100,
+    dx: 0, dy: 0,
+    speed: 7, jumpPower: -20,
+    grounded: false, facing: 1,
+    noseWork: 0
+};
+
+let platforms = [];
+let monsters = [];
+let boogers = [];
+
+function initGame() {
+    platforms = []; monsters = []; boogers = []; score = 0;
+    document.getElementById('score').innerText = "0";
+    platforms.push({x: 0, y: canvas.height - 70, w: worldWidth, h: 70, type: 'ground'});
+    for(let i = 600; i < worldWidth - 500; i += 450) {
+        let py = canvas.height - 220 - Math.random() * 180;
+        platforms.push({x: i, y: py, w: 160, h: 40, type: 'brick'});
+        monsters.push({ x: i + 40, y: py - 55, w: 55, h: 55, dx: 2.2, startX: i + 40, range: 120 });
+    }
+}
+
+function launchBooger() {
+    if(!gameActive) return;
+    player.noseWork = 12;
+    boogers.push({ x: player.x + (player.facing === 1 ? 75 : 5), y: player.y + 45, dx: player.facing * 16, dy: -1.2, r: 10 });
+}
+
+let keys = {left: false, right: false};
+actionBtn.onclick = () => {
+    overlay.style.display = 'none';
+    initGame();
+    gameActive = true;
+    bgm.play().catch(e => alert("音乐加载失败，请确保文件名是 音乐.aac"));
+};
+
+const bindBtn = (id, key) => {
+    const el = document.getElementById(id);
+    el.ontouchstart = (e) => { e.preventDefault(); keys[key] = true; };
+    el.ontouchend = (e) => { e.preventDefault(); keys[key] = false; };
+};
+bindBtn('leftBtn', 'left'); bindBtn('rightBtn', 'right');
+
+document.getElementById('jumpBtn').ontouchstart = (e) => {
+    e.preventDefault(); if(player.grounded) player.dy = player.jumpPower;
+};
+document.getElementById('fireBtn').ontouchstart = (e) => {
+    e.preventDefault(); launchBooger();
+};
+
+function update() {
+    if(!gameActive) return;
+    if (keys.right) { player.dx = player.speed; player.facing = 1; }
+    else if (keys.left) { player.dx = -player.speed; player.facing = -1; }
+    else { player.dx *= 0.85; }
+
+    player.dy += gravity;
+    player.x += player.dx; player.y += player.dy;
+    cameraX = player.x - canvas.width / 4;
+    if(cameraX < 0) cameraX = 0;
+
+    player.grounded = false;
+    platforms.forEach(p => {
+        if (player.x + 20 < p.x + p.w && player.x + player.w - 20 > p.x &&
+            player.y + player.h > p.y && player.y + player.h < p.y + p.h + player.dy) {
+            player.y = p.y - player.h; player.dy = 0; player.grounded = true;
+        }
+    });
+
+    boogers.forEach((b, bi) => {
+        b.x += b.dx; b.y += b.dy;
+        monsters.forEach((m, mi) => {
+            let d = Math.sqrt((b.x - (m.x+27))**2 + (b.y - (m.y+27))**2);
+            if(d < 50) { monsters.splice(mi, 1); boogers.splice(bi, 1); score += 200; document.getElementById('score').innerText = score; }
+        });
+        if(Math.abs(b.x - player.x) > 1200) boogers.splice(bi, 1);
+    });
+
+    monsters.forEach(m => {
+        m.x += m.dx; if(Math.abs(m.x - m.startX) > m.range) m.dx *= -1;
+        if(Math.abs(player.x - m.x) < 50 && Math.abs(player.y - m.y) < 60) die();
+    });
+    if(player.y > canvas.height) die();
+}
+
+function die() {
+    gameActive = false; bgm.pause(); bgm.currentTime = 0;
+    document.getElementById('title').innerText = "鸡脚露出来了！";
+    document.getElementById('subtitle').innerText = "得分: " + score;
+    actionBtn.innerText = "重新练习";
+    overlay.style.display = 'flex';
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+    ctx.fillStyle = "#5c94fc"; ctx.fillRect(cameraX, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    for(let i=0; i<worldWidth; i+=700) { ctx.beginPath(); ctx.arc(i, 120, 35, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(i+40, 120, 45, 0, Math.PI*2); ctx.fill(); }
+    platforms.forEach(p => { ctx.fillStyle = "#ffcc00"; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(p.x, p.y, p.w, p.h); });
+    monsters.forEach(m => { ctx.fillStyle = "#f80"; ctx.beginPath(); ctx.arc(m.x+27, m.y+27, 27, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(m.x+2, m.y+27); ctx.lineTo(m.x+52, m.y+27); ctx.stroke(); ctx.beginPath(); ctx.arc(m.x+27, m.y+27, 18, 0.2, Math.PI-0.2); ctx.stroke(); });
+    ctx.fillStyle = "#aaff00"; boogers.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.stroke(); });
+
+    if(playerImg.complete) {
+        ctx.save();
+        ctx.translate(player.x + player.w/2, player.y + player.h/2);
+        if(player.facing === -1) ctx.scale(-1, 1);
+        ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.clip();
+        ctx.drawImage(playerImg, -player.w/2, -player.h/2, player.w, player.h);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(player.x + player.w/2, player.y + player.h/2);
+        if(player.facing === -1) ctx.scale(-1, 1);
+        ctx.strokeStyle = "#ffdbac"; ctx.lineWidth = 8; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(10, 25);
+        if(player.noseWork > 0) { ctx.lineTo(55, 10); player.noseWork--; } 
+        else { ctx.lineTo(30, -5); ctx.lineTo(8, -26); }
+        ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
+    update();
+    requestAnimationFrame(draw);
+}
+
+draw();
+window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+</script>
 </body>
 </html>
