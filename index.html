@@ -5,194 +5,751 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>鼻屎战神：只因版超级玛丽</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'STHeiti', 'Microsoft YaHei', sans-serif; touch-action: none; }
-        #ui { position: fixed; top: 15px; left: 15px; color: #fff; font-size: 22px; font-weight: bold; text-shadow: 2px 2px #000; z-index: 10; pointer-events: none; }
-        #controls { position: fixed; bottom: 30px; width: 100%; display: flex; justify-content: space-between; padding: 0 25px; box-sizing: border-box; z-index: 20; }
-        .btn { width: 80px; height: 80px; background: rgba(255,255,255,0.35); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 3px solid #fff; font-size: 20px; font-weight: bold; -webkit-tap-highlight-color: transparent; user-select: none; }
-        .fire-btn { background: rgba(76, 175, 80, 0.7); width: 100px; height: 100px; font-size: 24px; box-shadow: 0 0 15px rgba(76,175,80,0.5); }
-        .jump-btn { background: rgba(33, 150, 243, 0.7); }
-        
-        #overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('me.jpg') center/cover; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        .start-btn { padding: 18px 50px; font-size: 24px; background: #ffcc00; border: none; border-radius: 50px; cursor: pointer; color: #000; font-weight: bold; margin-top: 20px; box-shadow: 0 5px 0 #b38f00; }
-        canvas { display: block; background: #5c94fc; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; font-family: 'STHeiti', 'Microsoft YaHei', sans-serif; touch-action: none; }
+
+        /* ── HUD ── */
+        #ui {
+            position: fixed; top: 0; left: 0; width: 100%; padding: 12px 18px;
+            display: flex; justify-content: space-between; align-items: center;
+            color: #fff; font-size: 18px; font-weight: bold;
+            text-shadow: 1px 1px 3px rgba(0,0,0,.7);
+            z-index: 10; pointer-events: none;
+            background: linear-gradient(180deg, rgba(0,0,0,.45) 0%, transparent 100%);
+        }
+        #ui .left  { display: flex; gap: 20px; }
+        #ui .right { display: flex; gap: 20px; }
+        .level-dots { display: flex; gap: 6px; align-items: center; }
+        .level-dots span {
+            width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,.6);
+            background: rgba(255,255,255,.15); display: inline-block;
+        }
+        .level-dots span.done  { background: #4caf50; border-color: #81c784; }
+        .level-dots span.now   { background: #ffcc00; border-color: #fff176; box-shadow: 0 0 6px #ffcc00; }
+
+        /* ── Controls ── */
+        #controls {
+            position: fixed; bottom: 28px; width: 100%;
+            display: flex; justify-content: space-between;
+            padding: 0 22px; z-index: 20;
+        }
+        .btn {
+            width: 72px; height: 72px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 18px; font-weight: bold;
+            -webkit-tap-highlight-color: transparent; user-select: none;
+            border: 2px solid rgba(255,255,255,.5);
+            background: rgba(255,255,255,.18);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,.25);
+            transition: transform .08s;
+        }
+        .btn:active { transform: scale(.9); }
+        .fire-btn {
+            background: rgba(76,175,80,.55); width: 88px; height: 88px;
+            font-size: 22px; border-color: rgba(129,199,132,.7);
+            box-shadow: 0 0 12px rgba(76,175,80,.4);
+        }
+        .jump-btn { background: rgba(33,150,243,.55); border-color: rgba(100,181,246,.7); }
+
+        /* ── Overlay ── */
+        #overlay {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #fff; text-align: center;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,.75) 0%, rgba(0,0,0,.92) 100%);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        #overlay h1 { font-size: 38px; color: #ffcc00; margin-bottom: 6px; letter-spacing: 2px; }
+        #overlay p  { font-size: 17px; margin-bottom: 18px; color: #ccc; }
+        .start-btn {
+            padding: 16px 52px; font-size: 22px; font-weight: bold;
+            background: linear-gradient(135deg, #ffcc00, #ff9800); color: #000;
+            border: none; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 4px 0 #b38f00, 0 6px 20px rgba(255,152,0,.35);
+            transition: transform .1s;
+        }
+        .start-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b38f00; }
+
+        /* ── Level Banner ── */
+        #levelBanner {
+            position: fixed; inset: 0; z-index: 90;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            color: #fff; text-align: center;
+            background: rgba(0,0,0,.82);
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        }
+        #levelBanner h2 { font-size: 52px; color: #ffcc00; letter-spacing: 4px; }
+        #levelBanner p  { font-size: 20px; color: #ddd; margin-top: 10px; }
+
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
-<div id="ui">得分: <span id="score">0</span></div>
+<!-- HUD -->
+<div id="ui">
+    <div class="left">
+        <span>得分: <span id="score">0</span></span>
+        <span id="levelLabel">第 1 关</span>
+    </div>
+    <div class="right">
+        <div class="level-dots" id="levelDots"></div>
+    </div>
+</div>
 
+<!-- Start / Death / Victory overlay -->
 <div id="overlay">
-    <h1 id="title" style="font-size: 36px; color: #ffcc00; margin-bottom: 5px;">鼻屎战神</h1>
-    <p id="subtitle" style="font-size: 18px; margin-bottom: 20px;">—— 只因你太美版 ——</p>
-    <button class="start-btn" id="actionBtn">点击开始练习 (开启音乐)</button>
+    <h1 id="title">鼻屎战神</h1>
+    <p id="subtitle">—— 只因你太美版 ——</p>
+    <p id="instructions" style="font-size:14px; color:#aaa; max-width:320px; line-height:1.6; margin-bottom:14px;">
+        左右移动躲避怪物，跳跃通过平台，<br>弹射鼻屎消灭敌人，到达终点旗帜过关！
+    </p>
+    <button class="start-btn" id="actionBtn">开始游戏</button>
+</div>
+
+<!-- Level transition banner -->
+<div id="levelBanner">
+    <h2 id="bannerTitle">第 1 关</h2>
+    <p id="bannerHint"></p>
 </div>
 
 <canvas id="gameCanvas"></canvas>
 
 <div id="controls">
-    <div style="display:flex; gap:15px;">
-        <div class="btn" id="leftBtn">左</div>
-        <div class="btn" id="rightBtn">右</div>
+    <div style="display:flex; gap:14px;">
+        <div class="btn" id="leftBtn">◀</div>
+        <div class="btn" id="rightBtn">▶</div>
     </div>
-    <div style="display:flex; gap:15px; align-items: center;">
+    <div style="display:flex; gap:14px; align-items: center;">
         <div class="btn fire-btn" id="fireBtn">弹射</div>
         <div class="btn jump-btn" id="jumpBtn">跳</div>
     </div>
 </div>
 
-<!-- 核心修改：匹配你 GitHub 里的文件名 "音乐.aac" -->
 <audio id="bgm" loop preload="auto">
     <source src="音乐.aac" type="audio/aac">
 </audio>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const bgm = document.getElementById('bgm');
-const actionBtn = document.getElementById('actionBtn');
-const overlay = document.getElementById('overlay');
+/* ====== Canvas & globals ====== */
+const canvas  = document.getElementById('gameCanvas');
+const ctx     = canvas.getContext('2d');
+const bgm     = document.getElementById('bgm');
+const overlay  = document.getElementById('overlay');
+const actionBtn= document.getElementById('actionBtn');
+const levelBanner = document.getElementById('levelBanner');
 
-canvas.width = window.innerWidth;
+canvas.width  = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// 加载资源
 const playerImg = new Image();
 playerImg.src = 'me.jpg';
 
+const gravity = 0.8;
 let gameActive = false;
 let score = 0;
 let cameraX = 0;
-const gravity = 0.8;
-const worldWidth = 12000;
+let currentLevel = 0;
+let totalLevels = 5;
+let particles = [];
 
+/* ====== Level definitions ====== */
+function getLevelConfig(lvl) {
+    // Each level gets progressively harder and longer
+    const configs = [
+        { // Level 1 - Tutorial
+            width: 4000, platformGap: 500, monsterChance: 0.4,
+            monsterSpeed: 1.8, gapChance: 0.0,
+            skyTop: '#87CEEB', skyBot: '#5c94fc',
+            groundColor: '#4a7a2e', brickColor: '#c0392b',
+            hint: '熟悉操作，到达终点旗帜！'
+        },
+        { // Level 2
+            width: 5500, platformGap: 460, monsterChance: 0.55,
+            monsterSpeed: 2.2, gapChance: 0.15,
+            skyTop: '#f9a825', skyBot: '#ff7043',
+            groundColor: '#6d4c41', brickColor: '#8d6e63',
+            hint: '小心地面缺口！'
+        },
+        { // Level 3
+            width: 7000, platformGap: 420, monsterChance: 0.65,
+            monsterSpeed: 2.6, gapChance: 0.22,
+            skyTop: '#7e57c2', skyBot: '#311b92',
+            groundColor: '#37474f', brickColor: '#546e7a',
+            hint: '怪物变快了，注意弹射！'
+        },
+        { // Level 4
+            width: 8500, platformGap: 400, monsterChance: 0.75,
+            monsterSpeed: 3.0, gapChance: 0.28,
+            skyTop: '#1a237e', skyBot: '#0d47a1',
+            groundColor: '#263238', brickColor: '#455a64',
+            hint: '黑暗降临，坚持住！'
+        },
+        { // Level 5 - Final
+            width: 10000, platformGap: 380, monsterChance: 0.85,
+            monsterSpeed: 3.4, gapChance: 0.32,
+            skyTop: '#b71c1c', skyBot: '#1a1a2e',
+            groundColor: '#212121', brickColor: '#d32f2f',
+            hint: '最终决战！冲向胜利！'
+        }
+    ];
+    return configs[Math.min(lvl, configs.length - 1)];
+}
+
+/* ====== Player ====== */
 const player = {
-    x: 100, y: 100, w: 80, h: 100,
+    x: 100, y: 100, w: 70, h: 90,
     dx: 0, dy: 0,
-    speed: 7, jumpPower: -20,
+    speed: 7, jumpPower: -18,
     grounded: false, facing: 1,
     noseWork: 0
 };
 
 let platforms = [];
-let monsters = [];
-let boogers = [];
+let monsters  = [];
+let boogers   = [];
+let goalFlag  = null;
+let levelConf = null;
 
-function initGame() {
-    platforms = []; monsters = []; boogers = []; score = 0;
-    document.getElementById('score').innerText = "0";
-    platforms.push({x: 0, y: canvas.height - 70, w: worldWidth, h: 70, type: 'ground'});
-    for(let i = 600; i < worldWidth - 500; i += 450) {
-        let py = canvas.height - 220 - Math.random() * 180;
-        platforms.push({x: i, y: py, w: 160, h: 40, type: 'brick'});
-        monsters.push({ x: i + 40, y: py - 55, w: 55, h: 55, dx: 2.2, startX: i + 40, range: 120 });
+/* ====== HUD helpers ====== */
+function updateHUD() {
+    document.getElementById('score').innerText = score;
+    document.getElementById('levelLabel').innerText = '第 ' + (currentLevel + 1) + ' 关';
+    const dots = document.getElementById('levelDots');
+    dots.innerHTML = '';
+    for (let i = 0; i < totalLevels; i++) {
+        const s = document.createElement('span');
+        if (i < currentLevel) s.className = 'done';
+        else if (i === currentLevel) s.className = 'now';
+        dots.appendChild(s);
     }
 }
 
-function launchBooger() {
-    if(!gameActive) return;
-    player.noseWork = 12;
-    boogers.push({ x: player.x + (player.facing === 1 ? 75 : 5), y: player.y + 45, dx: player.facing * 16, dy: -1.2, r: 10 });
+/* ====== Init level ====== */
+function initLevel(lvl) {
+    const c = getLevelConfig(lvl);
+    levelConf = c;
+    platforms = []; monsters = []; boogers = []; particles = [];
+    player.x = 120; player.y = 100; player.dx = 0; player.dy = 0;
+    player.grounded = false; player.noseWork = 0;
+
+    const ch = canvas.height;
+    const groundY = ch - 60;
+    const groundH = 60;
+
+    // Build ground with optional gaps
+    let gx = 0;
+    while (gx < c.width) {
+        const segLen = 300 + Math.random() * 400;
+        if (gx > 500 && gx < c.width - 600 && Math.random() < c.gapChance) {
+            // gap in ground
+            const gapW = 120 + Math.random() * 80;
+            gx += gapW;
+        }
+        const endX = Math.min(gx + segLen, c.width);
+        platforms.push({ x: gx, y: groundY, w: endX - gx, h: groundH, type: 'ground' });
+        gx = endX;
+    }
+
+    // Floating platforms + monsters
+    for (let i = 500; i < c.width - 500; i += c.platformGap) {
+        const py = ch - 200 - Math.random() * 200;
+        const pw = 120 + Math.random() * 80;
+        platforms.push({ x: i, y: py, w: pw, h: 32, type: 'brick' });
+        if (Math.random() < c.monsterChance) {
+            monsters.push({
+                x: i + 20, y: py - 50, w: 50, h: 50,
+                dx: c.monsterSpeed * (Math.random() > 0.5 ? 1 : -1),
+                startX: i + 20, range: pw - 20,
+                color: ['#ff5722','#e91e63','#9c27b0','#ff9800','#f44336'][Math.floor(Math.random()*5)]
+            });
+        }
+    }
+
+    // Goal flag at end
+    goalFlag = { x: c.width - 200, y: groundY - 180, w: 60, h: 180 };
+
+    updateHUD();
 }
 
-let keys = {left: false, right: false};
-actionBtn.onclick = () => {
-    overlay.style.display = 'none';
-    initGame();
-    gameActive = true;
-    bgm.play().catch(e => alert("音乐加载失败，请确保文件名是 音乐.aac"));
-};
+/* ====== Launch booger ====== */
+function launchBooger() {
+    if (!gameActive) return;
+    player.noseWork = 12;
+    boogers.push({
+        x: player.x + (player.facing === 1 ? 65 : 5),
+        y: player.y + 40,
+        dx: player.facing * 16,
+        dy: -1.5, r: 9, life: 80
+    });
+}
+
+/* ====== Spawn particle burst ====== */
+function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 4;
+        particles.push({
+            x: x, y: y,
+            dx: Math.cos(angle) * speed,
+            dy: Math.sin(angle) * speed - 2,
+            r: 3 + Math.random() * 4,
+            life: 30 + Math.random() * 20,
+            color: color
+        });
+    }
+}
+
+/* ====== Controls ====== */
+let keys = { left: false, right: false };
 
 const bindBtn = (id, key) => {
     const el = document.getElementById(id);
-    el.ontouchstart = (e) => { e.preventDefault(); keys[key] = true; };
-    el.ontouchend = (e) => { e.preventDefault(); keys[key] = false; };
+    const start = (e) => { e.preventDefault(); keys[key] = true; };
+    const end   = (e) => { e.preventDefault(); keys[key] = false; };
+    el.addEventListener('touchstart', start, { passive: false });
+    el.addEventListener('touchend', end, { passive: false });
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('mouseleave', end);
 };
-bindBtn('leftBtn', 'left'); bindBtn('rightBtn', 'right');
+bindBtn('leftBtn', 'left');
+bindBtn('rightBtn', 'right');
 
-document.getElementById('jumpBtn').ontouchstart = (e) => {
-    e.preventDefault(); if(player.grounded) player.dy = player.jumpPower;
-};
-document.getElementById('fireBtn').ontouchstart = (e) => {
-    e.preventDefault(); launchBooger();
-};
+const jumpStart = (e) => { e.preventDefault(); if (player.grounded && gameActive) player.dy = player.jumpPower; };
+const fireStart = (e) => { e.preventDefault(); launchBooger(); };
+document.getElementById('jumpBtn').addEventListener('touchstart', jumpStart, { passive: false });
+document.getElementById('jumpBtn').addEventListener('mousedown', jumpStart);
+document.getElementById('fireBtn').addEventListener('touchstart', fireStart, { passive: false });
+document.getElementById('fireBtn').addEventListener('mousedown', fireStart);
 
-function update() {
-    if(!gameActive) return;
-    if (keys.right) { player.dx = player.speed; player.facing = 1; }
-    else if (keys.left) { player.dx = -player.speed; player.facing = -1; }
-    else { player.dx *= 0.85; }
+// Keyboard support
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+    if (e.key === 'ArrowRight'|| e.key === 'd') keys.right = true;
+    if ((e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') && player.grounded && gameActive) player.dy = player.jumpPower;
+    if (e.key === 'f' || e.key === 'j') launchBooger();
+});
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+    if (e.key === 'ArrowRight'|| e.key === 'd') keys.right = false;
+});
 
-    player.dy += gravity;
-    player.x += player.dx; player.y += player.dy;
-    cameraX = player.x - canvas.width / 4;
-    if(cameraX < 0) cameraX = 0;
+/* ====== Game flow ====== */
+function showLevelBanner(lvl, callback) {
+    const c = getLevelConfig(lvl);
+    document.getElementById('bannerTitle').innerText = '第 ' + (lvl + 1) + ' 关';
+    document.getElementById('bannerHint').innerText = c.hint;
+    levelBanner.style.display = 'flex';
+    setTimeout(() => { levelBanner.style.display = 'none'; callback(); }, 1800);
+}
 
-    player.grounded = false;
-    platforms.forEach(p => {
-        if (player.x + 20 < p.x + p.w && player.x + player.w - 20 > p.x &&
-            player.y + player.h > p.y && player.y + player.h < p.y + p.h + player.dy) {
-            player.y = p.y - player.h; player.dy = 0; player.grounded = true;
-        }
-    });
+function startGame() {
+    overlay.style.display = 'none';
+    currentLevel = 0; score = 0;
+    bgm.currentTime = 0;
+    bgm.play().catch(() => {});
+    showLevelBanner(0, () => { initLevel(0); gameActive = true; });
+}
 
-    boogers.forEach((b, bi) => {
-        b.x += b.dx; b.y += b.dy;
-        monsters.forEach((m, mi) => {
-            let d = Math.sqrt((b.x - (m.x+27))**2 + (b.y - (m.y+27))**2);
-            if(d < 50) { monsters.splice(mi, 1); boogers.splice(bi, 1); score += 200; document.getElementById('score').innerText = score; }
-        });
-        if(Math.abs(b.x - player.x) > 1200) boogers.splice(bi, 1);
-    });
-
-    monsters.forEach(m => {
-        m.x += m.dx; if(Math.abs(m.x - m.startX) > m.range) m.dx *= -1;
-        if(Math.abs(player.x - m.x) < 50 && Math.abs(player.y - m.y) < 60) die();
-    });
-    if(player.y > canvas.height) die();
+function levelClear() {
+    gameActive = false;
+    score += 500;
+    updateHUD();
+    spawnParticles(goalFlag.x + 30, goalFlag.y + 20, '#ffcc00', 30);
+    currentLevel++;
+    if (currentLevel >= totalLevels) {
+        // Victory!
+        setTimeout(() => {
+            bgm.pause();
+            document.getElementById('title').innerText = '🎉 通关成功！';
+            document.getElementById('subtitle').innerText = '总得分: ' + score;
+            document.getElementById('instructions').innerText = '你太厉害了，鼻屎战神名不虚传！';
+            actionBtn.innerText = '再来一次';
+            overlay.style.display = 'flex';
+        }, 600);
+    } else {
+        setTimeout(() => {
+            showLevelBanner(currentLevel, () => { initLevel(currentLevel); gameActive = true; });
+        }, 600);
+    }
 }
 
 function die() {
-    gameActive = false; bgm.pause(); bgm.currentTime = 0;
-    document.getElementById('title').innerText = "鸡脚露出来了！";
-    document.getElementById('subtitle').innerText = "得分: " + score;
-    actionBtn.innerText = "重新练习";
+    gameActive = false;
+    bgm.pause(); bgm.currentTime = 0;
+    document.getElementById('title').innerText = '鸡脚露出来了！';
+    document.getElementById('subtitle').innerText = '在第 ' + (currentLevel + 1) + ' 关阵亡  |  得分: ' + score;
+    document.getElementById('instructions').innerText = '别灰心，再试试吧！';
+    actionBtn.innerText = '重新挑战';
     overlay.style.display = 'flex';
 }
 
+actionBtn.onclick = startGame;
+
+/* ====== Update ====== */
+function update() {
+    if (!gameActive) return;
+
+    // Movement
+    if (keys.right) { player.dx = player.speed; player.facing = 1; }
+    else if (keys.left) { player.dx = -player.speed; player.facing = -1; }
+    else { player.dx *= 0.82; }
+
+    player.dy += gravity;
+    player.x += player.dx;
+    player.y += player.dy;
+
+    // Clamp left
+    if (player.x < 0) player.x = 0;
+
+    cameraX = player.x - canvas.width / 3.5;
+    if (cameraX < 0) cameraX = 0;
+
+    // Collision
+    player.grounded = false;
+    for (const p of platforms) {
+        if (player.x + 18 < p.x + p.w && player.x + player.w - 18 > p.x &&
+            player.y + player.h > p.y && player.y + player.h < p.y + p.h + Math.abs(player.dy) + 2) {
+            if (player.dy >= 0) {
+                player.y = p.y - player.h;
+                player.dy = 0;
+                player.grounded = true;
+            }
+        }
+    }
+
+    // Boogers
+    for (let bi = boogers.length - 1; bi >= 0; bi--) {
+        const b = boogers[bi];
+        b.x += b.dx; b.y += b.dy; b.life--;
+        if (b.life <= 0) { boogers.splice(bi, 1); continue; }
+        let hit = false;
+        for (let mi = monsters.length - 1; mi >= 0; mi--) {
+            const m = monsters[mi];
+            const d = Math.hypot(b.x - (m.x + 25), b.y - (m.y + 25));
+            if (d < 45) {
+                spawnParticles(m.x + 25, m.y + 25, m.color, 12);
+                monsters.splice(mi, 1);
+                score += 200;
+                updateHUD();
+                hit = true; break;
+            }
+        }
+        if (hit) { boogers.splice(bi, 1); }
+    }
+
+    // Monsters
+    for (const m of monsters) {
+        m.x += m.dx;
+        if (Math.abs(m.x - m.startX) > m.range) m.dx *= -1;
+        if (Math.abs(player.x + player.w / 2 - (m.x + 25)) < 42 &&
+            Math.abs(player.y + player.h / 2 - (m.y + 25)) < 50) {
+            die(); return;
+        }
+    }
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.dx; p.y += p.dy; p.dy += 0.15; p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Fall death
+    if (player.y > canvas.height + 100) { die(); return; }
+
+    // Goal flag check
+    if (goalFlag && player.x + player.w > goalFlag.x && player.x < goalFlag.x + goalFlag.w &&
+        player.y + player.h > goalFlag.y) {
+        levelClear();
+    }
+}
+
+/* ====== Drawing helpers ====== */
+function drawSky() {
+    if (!levelConf) return;
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, levelConf.skyTop);
+    grad.addColorStop(1, levelConf.skyBot);
+    ctx.fillStyle = grad;
+    ctx.fillRect(cameraX, 0, canvas.width, canvas.height);
+}
+
+function drawClouds(worldW) {
+    ctx.fillStyle = 'rgba(255,255,255,.25)';
+    // Parallax: clouds move slower than camera
+    const parallax = 0.3;
+    for (let i = 0; i < worldW; i += 600) {
+        const cx = i - cameraX * parallax + cameraX;
+        const cy = 60 + (i % 200);
+        drawCloud(cx, cy, 0.8 + (i % 3) * 0.3);
+    }
+}
+
+function drawCloud(cx, cy, scale) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.arc(35, -8, 38, 0, Math.PI * 2);
+    ctx.arc(70, 2, 28, 0, Math.PI * 2);
+    ctx.arc(30, 14, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawMountains(worldW) {
+    if (!levelConf) return;
+    ctx.fillStyle = 'rgba(0,0,0,.08)';
+    const parallax = 0.15;
+    for (let i = 0; i < worldW; i += 500) {
+        const mx = i - cameraX * parallax + cameraX;
+        const mh = 100 + (i * 7) % 120;
+        ctx.beginPath();
+        ctx.moveTo(mx, canvas.height - 60);
+        ctx.lineTo(mx + 120, canvas.height - 60 - mh);
+        ctx.lineTo(mx + 240, canvas.height - 60);
+        ctx.fill();
+    }
+}
+
+function drawPlatform(p) {
+    if (!levelConf) return;
+    if (p.type === 'ground') {
+        // Grass top + dirt body
+        ctx.fillStyle = levelConf.groundColor;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        // Grass stripe
+        ctx.fillStyle = '#66bb6a';
+        ctx.fillRect(p.x, p.y, p.w, 8);
+        // Texture lines
+        ctx.strokeStyle = 'rgba(0,0,0,.1)';
+        ctx.lineWidth = 1;
+        for (let tx = p.x; tx < p.x + p.w; tx += 30) {
+            ctx.beginPath();
+            ctx.moveTo(tx, p.y + 10);
+            ctx.lineTo(tx + 10, p.y + p.h);
+            ctx.stroke();
+        }
+    } else {
+        // Brick platform
+        const bw = 32, bh = 16;
+        ctx.fillStyle = levelConf.brickColor;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        // Brick pattern
+        ctx.strokeStyle = 'rgba(0,0,0,.2)';
+        ctx.lineWidth = 1;
+        let row = 0;
+        for (let by = p.y; by < p.y + p.h; by += bh) {
+            const off = (row % 2) * (bw / 2);
+            for (let bx = p.x + off; bx < p.x + p.w; bx += bw) {
+                ctx.strokeRect(bx, by, bw, Math.min(bh, p.y + p.h - by));
+            }
+            row++;
+        }
+        // Highlight top
+        ctx.fillStyle = 'rgba(255,255,255,.15)';
+        ctx.fillRect(p.x, p.y, p.w, 4);
+        // Shadow bottom
+        ctx.fillStyle = 'rgba(0,0,0,.15)';
+        ctx.fillRect(p.x, p.y + p.h - 4, p.w, 4);
+    }
+}
+
+function drawGoalFlag() {
+    if (!goalFlag) return;
+    const f = goalFlag;
+    // Pole
+    ctx.fillStyle = '#bdbdbd';
+    ctx.fillRect(f.x + 6, f.y, 8, f.h);
+    // Pole top ball
+    ctx.fillStyle = '#ffd600';
+    ctx.beginPath();
+    ctx.arc(f.x + 10, f.y, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#f9a825';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Flag
+    const wave = Math.sin(Date.now() / 200) * 4;
+    ctx.fillStyle = '#f44336';
+    ctx.beginPath();
+    ctx.moveTo(f.x + 14, f.y + 8);
+    ctx.lineTo(f.x + 54 + wave, f.y + 25);
+    ctx.lineTo(f.x + 14, f.y + 48);
+    ctx.closePath();
+    ctx.fill();
+    // Star on flag
+    ctx.fillStyle = '#ffeb3b';
+    ctx.font = '18px sans-serif';
+    ctx.fillText('★', f.x + 22 + wave * 0.5, f.y + 35);
+}
+
+function drawMonster(m) {
+    const cx = m.x + 25, cy = m.y + 25;
+    // Body
+    ctx.fillStyle = m.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+    ctx.fill();
+    // Outline
+    ctx.strokeStyle = 'rgba(0,0,0,.3)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(cx - 8, cy - 5, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 8, cy - 5, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    const lookDir = m.dx > 0 ? 2 : -2;
+    ctx.beginPath(); ctx.arc(cx - 8 + lookDir, cy - 5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 8 + lookDir, cy - 5, 3, 0, Math.PI * 2); ctx.fill();
+    // Angry mouth
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy + 6, 10, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    // Spikes on top
+    for (let a = -2; a <= 2; a++) {
+        const sx = cx + a * 8;
+        const sy = cy - 24;
+        ctx.fillStyle = m.color;
+        ctx.beginPath();
+        ctx.moveTo(sx - 4, sy + 6);
+        ctx.lineTo(sx, sy - 6);
+        ctx.lineTo(sx + 4, sy + 6);
+        ctx.fill();
+    }
+}
+
+function drawPlayer() {
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
+
+    // Shadow on ground
+    ctx.fillStyle = 'rgba(0,0,0,.15)';
+    ctx.beginPath();
+    ctx.ellipse(px, player.y + player.h + 3, 28, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (playerImg.complete && playerImg.naturalWidth > 0) {
+        // Avatar circle
+        ctx.save();
+        ctx.translate(px, py);
+        if (player.facing === -1) ctx.scale(-1, 1);
+        // Glow ring
+        ctx.strokeStyle = 'rgba(255,204,0,.4)';
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 0, 38, 0, Math.PI * 2); ctx.stroke();
+        // Clip circle
+        ctx.beginPath(); ctx.arc(0, 0, 35, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(playerImg, -player.w / 2, -player.h / 2, player.w, player.h);
+        ctx.restore();
+
+        // Arm / shooting pose
+        ctx.save();
+        ctx.translate(px, py);
+        if (player.facing === -1) ctx.scale(-1, 1);
+        ctx.strokeStyle = '#ffdbac';
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(10, 22);
+        if (player.noseWork > 0) {
+            ctx.lineTo(50, 8);
+            player.noseWork--;
+        } else {
+            ctx.lineTo(28, -2);
+            ctx.lineTo(10, -22);
+        }
+        ctx.stroke();
+        ctx.restore();
+    } else {
+        // Fallback square
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+    }
+}
+
+function drawBoogers() {
+    for (const b of boogers) {
+        // Glow
+        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r + 6);
+        grad.addColorStop(0, 'rgba(170,255,0,.7)');
+        grad.addColorStop(1, 'rgba(170,255,0,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 6, 0, Math.PI * 2); ctx.fill();
+        // Core
+        ctx.fillStyle = '#aaff00';
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+}
+
+function drawParticles() {
+    for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.life / 50);
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (p.life / 50), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+}
+
+/* ====== Main draw loop ====== */
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!levelConf) {
+        // Pre-game: simple background
+        ctx.fillStyle = '#5c94fc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(draw);
+        return;
+    }
+
     ctx.save();
     ctx.translate(-cameraX, 0);
-    ctx.fillStyle = "#5c94fc"; ctx.fillRect(cameraX, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    for(let i=0; i<worldWidth; i+=700) { ctx.beginPath(); ctx.arc(i, 120, 35, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(i+40, 120, 45, 0, Math.PI*2); ctx.fill(); }
-    platforms.forEach(p => { ctx.fillStyle = "#ffcc00"; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(p.x, p.y, p.w, p.h); });
-    monsters.forEach(m => { ctx.fillStyle = "#f80"; ctx.beginPath(); ctx.arc(m.x+27, m.y+27, 27, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(m.x+2, m.y+27); ctx.lineTo(m.x+52, m.y+27); ctx.stroke(); ctx.beginPath(); ctx.arc(m.x+27, m.y+27, 18, 0.2, Math.PI-0.2); ctx.stroke(); });
-    ctx.fillStyle = "#aaff00"; boogers.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.stroke(); });
 
-    if(playerImg.complete) {
-        ctx.save();
-        ctx.translate(player.x + player.w/2, player.y + player.h/2);
-        if(player.facing === -1) ctx.scale(-1, 1);
-        ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.clip();
-        ctx.drawImage(playerImg, -player.w/2, -player.h/2, player.w, player.h);
-        ctx.restore();
-        ctx.save();
-        ctx.translate(player.x + player.w/2, player.y + player.h/2);
-        if(player.facing === -1) ctx.scale(-1, 1);
-        ctx.strokeStyle = "#ffdbac"; ctx.lineWidth = 8; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(10, 25);
-        if(player.noseWork > 0) { ctx.lineTo(55, 10); player.noseWork--; } 
-        else { ctx.lineTo(30, -5); ctx.lineTo(8, -26); }
-        ctx.stroke(); ctx.restore();
-    }
+    drawSky();
+    drawMountains(levelConf.width);
+    drawClouds(levelConf.width);
+
+    // Platforms
+    for (const p of platforms) drawPlatform(p);
+
+    // Goal flag
+    drawGoalFlag();
+
+    // Monsters
+    for (const m of monsters) drawMonster(m);
+
+    // Boogers
+    drawBoogers();
+
+    // Particles
+    drawParticles();
+
+    // Player
+    drawPlayer();
+
     ctx.restore();
+
     update();
     requestAnimationFrame(draw);
 }
 
 draw();
-window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
 </script>
 </body>
 </html>
